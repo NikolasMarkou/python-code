@@ -13,7 +13,7 @@ Use cases: writing, reviewing, or structuring Python code; DDD, repository, serv
 ```
 python-code/
 ├── README.md                         # User documentation
-├── LICENSE                           # GNU GPLv3
+├── LICENSE                           # GNU AGPLv3
 ├── VERSION                           # Single source of truth for version number
 ├── CHANGELOG.md                      # Version history
 ├── CLAUDE.md                         # This file
@@ -48,6 +48,30 @@ Complete spec in **src/SKILL.md**. Key sections:
 - **Design Heuristics**: `src/references/design-heuristics.md` (12 heuristics)
 
 Do not duplicate skill content here. Read src/SKILL.md directly.
+
+## Git & Pushing
+
+The remote uses SSH via the `github` host alias defined in `~/.ssh/config`, which maps to `~/.ssh/id_rsa_nikolasmarkou_github`.
+
+```bash
+# Correct remote URL (MUST use this — not HTTPS):
+git remote set-url origin git@github:NikolasMarkou/python-code.git
+
+# Push:
+git push origin main
+
+# Push tags:
+git push origin v1.x.0
+```
+
+**Do not use HTTPS.** The `gh` CLI is authenticated as a different user (`nmelecti`) with read-only access to this repo. All push operations (commits, tags, packages) must go through SSH with the above key.
+
+When releasing, force-add dist packages (they are in `.gitignore`) and push:
+```bash
+git add -f dist/python-code-v*.zip dist/python-code-combined.md
+git commit -m "Add vX.Y.Z distribution packages"
+git push origin main
+```
 
 ## Working with This Codebase
 
