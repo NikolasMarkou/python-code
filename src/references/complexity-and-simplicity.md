@@ -7,7 +7,7 @@ Deep reference material for complexity-related mental models.
 2. Simple vs Easy (Hickey)
 3. Three Symptoms of Complexity (Ousterhout)
 4. Knowledge Degradation (Blow)
-5. Hickey's Complecting Table
+5. Complexity Detection Checklist
 
 ---
 
@@ -24,6 +24,21 @@ wrong technology choices, organizational dysfunction. This is your target.
 
 **Your job as an architect:** reduce accidental complexity ruthlessly. When you encounter
 complexity, always ask: "Is this inherent in the problem, or did we create it?"
+
+```python
+# Accidental complexity — ORM ceremony for a simple lookup
+class UserRepository:
+    def __init__(self, session_factory):
+        self._session_factory = session_factory
+
+    def get_active_users(self):
+        with self._session_factory() as session:
+            return session.query(UserModel).filter(UserModel.active == True).all()
+
+# Essential complexity only — if you don't need the abstraction yet
+def get_active_users(db) -> list[dict]:
+    return db.execute(text("SELECT * FROM users WHERE active")).mappings().all()
+```
 
 Brooks' four essential difficulties of software:
 - **Complexity** — no two parts are alike (unlike physics, no repeating patterns to exploit)
@@ -94,6 +109,28 @@ by calling every 100 yards a new sprint. Complexity debt works the same way — 
 then pay compounding interest. Ignoring complexity guarantees slowdown. There is no amount of
 testing or type checking that compensates for a system where things are complected.
 
+```python
+# Complex — state braided with identity, value, and time
+class Order:
+    _all_orders = {}  # global mutable state — complects everything
+
+    def __init__(self, order_id, items):
+        self.order_id = order_id
+        self.items = items  # mutable — complects value with time
+        Order._all_orders[order_id] = self  # complects identity with global state
+
+# Simple — values separated from identity and state
+@dataclass(frozen=True)
+class OrderLine:
+    sku: str
+    qty: int
+
+@dataclass(frozen=True)
+class Order:
+    order_id: str
+    lines: tuple[OrderLine, ...]  # immutable value — no hidden state
+```
+
 ### Key Quotes
 - "Simplicity is a prerequisite for reliability." (Dijkstra, quoted by Hickey)
 - "Programming is not about typing, it's about thinking."
@@ -118,6 +155,23 @@ boundary.
 Developers must hold too much context to make a change safely. This is NOT the same as "lines of
 code." A 300-line function with a simple signature and clear flow has lower cognitive load than
 10 tiny functions with complex interactions between them.
+
+```python
+# High cognitive load — must understand 4 modules and their interactions
+def process_order(order_id):
+    order = _cache.get(order_id) or _repo.find(order_id)
+    _validator.validate(order, _config.rules)  # what rules? side effects?
+    _enricher.enrich(order, _external_api)      # mutates order? can fail?
+    _repo.save(order)
+    _cache.invalidate(order_id)
+
+# Lower cognitive load — explicit, self-contained
+def process_order(order_id: str, repo: OrderRepository) -> Order:
+    order = repo.get(order_id)
+    validated = validate_order(order)  # pure function, returns new value
+    repo.save(validated)
+    return validated
+```
 
 ### Symptom 3: Unknown Unknowns
 You don't know what you need to change. This is the worst symptom because you can't even estimate
@@ -192,3 +246,18 @@ Common pitfalls that introduce accidental complexity:
 - **Over-engineering** — adding patterns (DI, events, CQRS) before feeling the pain they solve
 - **Configuration over convention** — making everything configurable instead of picking good defaults
 - **Indirection for indirection's sake** — layers that pass through without adding value
+
+```python
+# Over-engineering — unnecessary abstraction layers
+class AbstractUserFetcher(ABC): ...
+class UserFetcher(AbstractUserFetcher): ...
+class UserFetcherFactory:
+    def create(self) -> AbstractUserFetcher: return UserFetcher()
+class UserService:
+    def __init__(self, factory: UserFetcherFactory):
+        self._fetcher = factory.create()
+
+# Just write the function
+def get_user(user_id: int, db) -> User | None:
+    return db.execute(text("SELECT * FROM users WHERE id = :id"), {"id": user_id}).first()
+```

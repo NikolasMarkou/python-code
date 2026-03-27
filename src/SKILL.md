@@ -70,6 +70,13 @@ High-level modules must not depend on low-level modules. In Python: domain / bus
 | "How do I decompose this domain?" | `design-heuristics.md` §8, §9 |
 | "How do I start designing this?" | `pre-design-and-expertise.md` §1, §2 |
 | "What constraints am I working within?" | `pre-design-and-expertise.md` §6 |
+| "Do we have time for good design?" | `decision-frameworks.md` §2 |
+| "Should we adopt this new technology?" | `decision-frameworks.md` §3 |
+| "Is this hot-path code worth optimizing?" | `decision-frameworks.md` §4 |
+| "How do I get better at design?" | `pre-design-and-expertise.md` §7, §8 |
+| "Should I write this up first?" | `pre-design-and-expertise.md` §5 |
+| "How do I debug this effectively?" | `pre-design-and-expertise.md` §3 |
+| "How do I test-drive this design?" | `pre-design-and-expertise.md` §4 |
 
 ### Python architecture / structure questions
 
@@ -86,7 +93,19 @@ High-level modules must not depend on low-level modules. In Python: domain / bus
 | "What consistency boundary do I need?" | `architecture-patterns.md` §7 (Aggregates) |
 | "Data pipeline design" | `architecture-patterns.md` §11, §12 |
 | "What's a deep module vs shallow module?" | `design-heuristics.md` §1 |
+| "Should I always generate alternatives?" | `design-heuristics.md` §2 |
+| "What makes a good simple design?" | `design-heuristics.md` §3 |
+| "What are red flags in a design?" | `design-heuristics.md` §4 |
+| "When does data structure choice matter?" | `design-heuristics.md` §6 |
+| "How do I eliminate special cases?" | `design-heuristics.md` §7 |
 | "Failure modes for this service integration" | `design-heuristics.md` §10, `decision-frameworks.md` §7 |
+| "Distributed transactions across services" | `design-heuristics.md` §11 |
+| "Org structure affecting architecture" | `design-heuristics.md` §12 |
+| "Layered architecture for this project" | `architecture-patterns.md` §2 |
+| "Unit of Work / atomic transactions" | `architecture-patterns.md` §6 |
+| "Class design: MRO, super(), __slots__" | `architecture-patterns.md` §13 |
+| "README-driven / API-first design" | `architecture-patterns.md` §15 |
+| "When to skip patterns / CRUD apps" | `architecture-patterns.md` §17, §18 |
 
 ### Python style / code review questions
 
@@ -101,6 +120,12 @@ High-level modules must not depend on low-level modules. In Python: domain / bus
 | "Performance bottleneck" | `style-guide.md` §11, `architecture-patterns.md` §14 |
 | "Testing approach" | `style-guide.md` §12 |
 | "Code review — is this good Python?" | `style-guide.md` §15 (anti-patterns checklist) |
+| "How do I format this code?" | `style-guide.md` §2 |
+| "Which data structure should I use?" | `style-guide.md` §5 |
+| "Function design / guard clauses / generators" | `style-guide.md` §6 |
+| "Imports and project layout" | `style-guide.md` §9 |
+| "Library / API design patterns" | `style-guide.md` §13 |
+| "What tooling should I use?" | `style-guide.md` §14 |
 
 ---
 
@@ -179,16 +204,7 @@ Parallel data processing  → multiprocessing.Pool with chunked data
 
 ### Complexity Checklist (run before recommending any pattern)
 
-```
-□ Can a new engineer make this change without asking someone?    (unknown unknowns)
-□ Does a single-concept change touch ≤ 3 files?                 (change amplification)
-□ Can you explain the module's contract in one sentence?         (cognitive load)
-□ Are the dependencies explicit and visible?                     (DIP compliance)
-□ Could you replace this module without changing its consumers?  (coupling)
-□ Is the naming accurate to what the thing actually does?        (cognitive load)
-```
-
-Three or more "no" answers = complexity problem worth addressing before adding patterns.
+→ Use the 8-question diagnostic in `references/complexity-and-simplicity.md` §5. Three or more "no" answers = complexity problem worth addressing before adding patterns.
 
 ---
 

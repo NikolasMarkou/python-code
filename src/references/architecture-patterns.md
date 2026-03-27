@@ -99,6 +99,8 @@ class Order:
 
 ## 3. Domain Modeling (DDD)
 
+**Domain-Driven Design (DDD)** is Eric Evans' approach to software design that places the business domain at the center of architecture. The core idea: build a shared model between developers and domain experts, expressed directly in code. DDD provides tactical building blocks (Value Objects, Entities, Aggregates, Domain Services, Domain Events) and strategic patterns (Bounded Contexts, Context Maps) for managing complexity in systems with rich business rules.
+
 ### Value Objects — immutable, equality by value
 
 ```python
@@ -226,16 +228,33 @@ class FakeBatchRepository:
 
 ### Classical ORM mapping — domain stays clean
 
+> **Note (SQLAlchemy 2.0+):** The imperative mapping below still works but is legacy. SQLAlchemy 2.0+ recommends `Mapped` and `mapped_column()` with `registry.map_imperatively()` or the new declarative style. However, the *principle* remains the same: domain model stays pure, infrastructure maps to it.
+
 ```python
 # orm.py — infrastructure imports domain (not the other way around)
 from myapp.domain.model import Batch, OrderLine
 
+# Legacy (SQLAlchemy 1.x / compatibility)
 def start_mappers():
     mapper_registry.map_imperatively(OrderLine, order_lines)
     mapper_registry.map_imperatively(
         Batch, batches,
         properties={'_allocations': relationship(OrderLine)},
     )
+
+# Modern (SQLAlchemy 2.0+) — same principle, new API
+from sqlalchemy.orm import Mapped, mapped_column, relationship, registry
+
+mapper_registry = registry()
+
+@mapper_registry.mapped
+class BatchDTO:
+    __tablename__ = 'batches'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    reference: Mapped[str]
+    sku: Mapped[str]
+    purchased_qty: Mapped[int]
+    _allocations: Mapped[list["OrderLineDTO"]] = relationship()
 ```
 
 ---

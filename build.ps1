@@ -223,6 +223,33 @@ function Invoke-Validate {
         }
     }
 
+    # Check for content freshness (Python version references)
+    Write-Host "Checking content freshness..."
+    Get-ChildItem "src/references/*.md" | ForEach-Object {
+        $refContent = Get-Content $_.FullName -Raw
+        $matches = [regex]::Matches($refContent, 'Python ([23]\.\d+)')
+        foreach ($match in $matches) {
+            $ver = $match.Groups[1].Value
+            $parts = $ver.Split('.')
+            if ([int]$parts[0] -eq 3 -and [int]$parts[1] -lt 10) {
+                Write-Host "WARNING: $($_.Name) references Python $ver (< 3.10) - may need update" -ForegroundColor Yellow
+            }
+        }
+    }
+
+    # Check for stale build artifacts
+    if (Test-Path $DistDir) {
+        $sourceFiles = @(Get-Item "src/SKILL.md") + @(Get-ChildItem "src/references/*.md")
+        $distFiles = Get-ChildItem $DistDir -File -ErrorAction SilentlyContinue
+        if ($distFiles) {
+            $latestSource = ($sourceFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime
+            $latestDist = ($distFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime
+            if ($latestSource -gt $latestDist) {
+                Write-Host "WARNING: Source files are newer than dist/ - run '.\build.ps1 package' to rebuild" -ForegroundColor Yellow
+            }
+        }
+    }
+
     if ($errors.Count -gt 0) {
         $errors | ForEach-Object { Write-Host $_ -ForegroundColor Red }
         exit 1

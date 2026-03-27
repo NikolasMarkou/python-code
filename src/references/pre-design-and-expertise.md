@@ -38,6 +38,20 @@ errors. Spending a day thinking saves a week debugging.
 **When to use this:** Before any project that will take more than a week. Before any architectural
 decision that's hard to reverse. Before any technology adoption.
 
+```python
+# What Hickey's process looks like in practice:
+# Instead of jumping to code, write a problem statement first:
+
+"""
+PROBLEM: Order processing takes 45s for large orders (500+ items).
+WHAT I KNOW: Bottleneck is N+1 queries in allocation loop.
+WHAT I DON'T KNOW: Whether batch allocation or CQRS read model is better.
+CONSTRAINTS: Must remain compatible with existing API. Max 2 weeks.
+RESEARCH: Cosmic Python ch.9 (CQRS), SQLAlchemy bulk operations docs.
+DECISION: Try batch allocation first (simpler). CQRS only if insufficient.
+"""
+```
+
 **The anti-pattern:** Jumping to implementation because "we don't have time to think." This is
 Fowler's design stamina problem — skipping thinking feels fast but is net slower.
 
@@ -69,6 +83,30 @@ almost never do. Yet software is far more complex than a building.
 **The payoff:** Catching a design error in a spec costs minutes. Catching it in production costs
 days to weeks. The ROI of specification is enormous.
 
+```python
+# Lamport's approach in Python: specify invariants BEFORE implementation
+
+# Step 1: Write the invariants as assertions
+def test_transfer_invariants():
+    """Money is never created or destroyed during transfer."""
+    account_a = Account(balance=1000)
+    account_b = Account(balance=500)
+    total_before = account_a.balance + account_b.balance
+
+    transfer(account_a, account_b, amount=200)
+
+    total_after = account_a.balance + account_b.balance
+    assert total_after == total_before, "Invariant violated: money created/destroyed"
+    assert account_a.balance >= 0, "Invariant violated: negative balance"
+
+# Step 2: NOW write the implementation that satisfies them
+def transfer(source: Account, target: Account, amount: int) -> None:
+    if source.balance < amount:
+        raise InsufficientFunds(source.id, amount)
+    source.balance -= amount
+    target.balance += amount
+```
+
 ---
 
 ## 3. Mental Model Debugging (Pike, from Thompson)
@@ -91,6 +129,21 @@ not the code level.
 model, not in a single line of code. If your model is wrong, you'll "fix" symptoms endlessly
 without addressing the cause.
 
+```python
+# Symptom: "Orders sometimes have wrong totals"
+# Typical reaction: add more validation, more logging, more checks
+# Thompson's approach: what's the MENTAL MODEL of how totals work?
+
+# Wrong model: "total is updated whenever a line is added"
+# (fails when lines are removed, modified, or added concurrently)
+
+# Right model: "total is always computed from current lines"
+@property
+def total(self) -> int:
+    return sum(line.price * line.qty for line in self.lines)
+    # Derived value — can never be out of sync. Bug class eliminated.
+```
+
 ---
 
 ## 4. Test-Driven Design (Beck)
@@ -112,6 +165,26 @@ from "make it right" into distinct, alternating steps.
 **Beck's preparatory refactoring heuristic:** "For each desired change, make the change easy
 (warning: this may be hard), then make the easy change." If a change feels hard, you're missing
 a preparatory refactoring step.
+
+```python
+# Task: add email notification when order is placed
+# Feels hard because business logic is inside the Flask route
+
+# Step 1: Make the change easy (extract service function)
+def place_order(orderid: str, sku: str, qty: int, uow) -> str:
+    with uow:
+        batchref = allocate(orderid, sku, qty, uow)
+        uow.commit()
+    return batchref
+
+# Step 2: Make the easy change (add notification)
+def place_order(orderid: str, sku: str, qty: int, uow, notify) -> str:
+    with uow:
+        batchref = allocate(orderid, sku, qty, uow)
+        uow.commit()
+    notify(orderid, batchref)  # easy — one line added
+    return batchref
+```
 
 **When TDD helps most:**
 - When the design space is well-understood
@@ -145,6 +218,30 @@ Top engineers use writing to make decisions, not document them.
 5. TRADE-OFFS — explicit costs and benefits of each option
 6. DECISION — what we chose and WHY
 7. CONSEQUENCES — what we accept as a result
+```
+
+```python
+# Example ADR (Architecture Decision Record) as Python docstring / comment:
+
+"""
+ADR-003: Use PostgreSQL instead of MongoDB for order storage
+
+CONTEXT: Orders have relational structure (order → lines → allocations).
+PROBLEM: Need ACID transactions for inventory allocation.
+CONSTRAINTS: Team has PostgreSQL experience. Budget for one managed DB.
+OPTIONS:
+  A) PostgreSQL — strong consistency, relational model, team knows it
+  B) MongoDB — schema flexibility, horizontal scaling
+TRADE-OFFS:
+  A gives: ACID, complex queries, familiar tooling
+     costs: vertical scaling, schema migrations
+  B gives: schema flex, easy horizontal scale
+     costs: no multi-document transactions, new learning curve
+DECISION: PostgreSQL (option A).
+WHY: ACID is non-negotiable for inventory. Team expertise. Don't spend
+     an innovation token on the database.
+CONSEQUENCES: Must plan for vertical scaling. Accept schema migrations.
+"""
 ```
 
 ### Document Formats

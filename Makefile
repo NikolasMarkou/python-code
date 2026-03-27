@@ -112,6 +112,32 @@ validate:
 			echo "ERROR: $$name missing 'When NOT to use' or failure modes section"; fail=1; \
 		fi; \
 	done; [ $$fail -eq 0 ]
+	@# Check for content freshness (Python version references)
+	@echo "Checking content freshness..."
+	@min_py="3.10"; \
+	for ref in $$(ls src/references/*.md 2>/dev/null); do \
+		if grep -qE 'Python [23]\.[0-9]+' $$ref; then \
+			latest=$$(grep -oE 'Python [23]\.[0-9]+' $$ref | sort -t. -k2 -n | tail -1 | grep -oE '[0-9]+\.[0-9]+'); \
+			if [ -n "$$latest" ]; then \
+				major=$$(echo $$latest | cut -d. -f1); \
+				minor=$$(echo $$latest | cut -d. -f2); \
+				if [ "$$major" -eq 3 ] && [ "$$minor" -lt 10 ]; then \
+					echo "WARNING: $$(basename $$ref) references Python $$latest (< 3.10) — may need update"; \
+				fi; \
+			fi; \
+		fi; \
+	done
+	@# Check for stale build artifacts
+	@if [ -d "$(DIST_DIR)" ]; then \
+		for src in $(SKILL_FILE) $(REFERENCE_FILES); do \
+			for dist in $(DIST_DIR)/*; do \
+				if [ "$$src" -nt "$$dist" ] 2>/dev/null; then \
+					echo "WARNING: $$src is newer than dist/ — run 'make package' to rebuild"; \
+					break 2; \
+				fi; \
+			done; \
+		done; \
+	fi
 	@echo "Validation passed!"
 
 # Clean build artifacts

@@ -45,6 +45,27 @@ if they have a simple signature and are easy to read. These methods are deep."
 complexity. It increases it by spreading logic across many shallow modules with complex
 interactions. The goal is not small units — it's deep units with simple interfaces.
 
+```python
+# Shallow module — interface as complex as implementation
+class StringValidator:
+    def validate_length(self, s: str, min_len: int, max_len: int) -> bool:
+        return min_len <= len(s) <= max_len
+    def validate_chars(self, s: str, allowed: set[str]) -> bool:
+        return all(c in allowed for c in s)
+
+# Deep module — simple interface hiding real complexity
+class EmailAddress:
+    """Construct with a string. If it's invalid, you get a ValueError."""
+    def __init__(self, value: str):
+        self._validate(value)
+        self._local, self._domain = value.rsplit("@", 1)
+        self._value = value
+
+    def _validate(self, value: str) -> None:
+        # 20+ lines of RFC 5322 validation hidden behind a one-arg constructor
+        ...
+```
+
 **Information hiding:** the mechanism for achieving depth. Each module encapsulates design
 decisions that other modules don't need to know. If two modules share knowledge about the same
 design decision, that's information leakage.
@@ -64,6 +85,24 @@ The act of producing alternatives:
 
 Even if you end up with your first design, you'll understand it better for having considered
 alternatives.
+
+```python
+# Design A: Flat function — simple, but couples parsing + validation + storage
+def ingest_csv(path: str, db) -> int:
+    rows = csv.DictReader(open(path))
+    for row in rows:
+        if is_valid(row):
+            db.insert(row)
+
+# Design B: Pipeline — more structure, but each step is independently testable
+def ingest_csv(path: str, db) -> int:
+    raw = parse_csv(path)           # pure: Path → list[dict]
+    valid = filter_valid(raw)       # pure: list[dict] → list[dict]
+    return persist(valid, db)       # I/O: list[dict] → int
+
+# Compare: B costs one more function call but gains testability and reusability.
+# In a script? A is fine. In a system? B pays off.
+```
 
 ---
 
@@ -93,6 +132,25 @@ Stop and reconsider when you see:
 
 **Ousterhout's social rule:** "If a reviewer tells you something is not obvious, don't argue
 with them." If someone doesn't understand your code, the code is the problem, not the person.
+
+```python
+# Red flag: pass-through method adding no value
+class UserService:
+    def __init__(self, repo): self._repo = repo
+    def get_user(self, user_id):
+        return self._repo.get_user(user_id)  # why does this class exist?
+
+# Red flag: temporal decomposition — structured by execution order, not knowledge
+def step1_load(): ...
+def step2_validate(): ...
+def step3_transform(): ...
+def step4_save(): ...
+
+# Better: structured by what each module knows
+def load_orders(source: str) -> list[RawOrder]: ...
+def validate_orders(orders: list[RawOrder]) -> list[ValidOrder]: ...
+def persist_orders(orders: list[ValidOrder], db) -> int: ...
+```
 
 ---
 
@@ -141,6 +199,22 @@ muscles. If the skeleton is wrong, no amount of muscular effort fixes it.
 algorithms will almost always be self-evident. Data structures, not algorithms, are central
 to programming."
 
+```python
+# Wrong data structure → complex algorithm
+def find_duplicates(items: list[str]) -> list[str]:
+    dupes = []
+    for i, item in enumerate(items):
+        for j in range(i + 1, len(items)):
+            if items[j] == item and item not in dupes:
+                dupes.append(item)
+    return dupes  # O(n²), hard to read
+
+# Right data structure → algorithm is obvious
+def find_duplicates(items: list[str]) -> set[str]:
+    seen: set[str] = set()
+    return {item for item in items if item in seen or seen.add(item)}  # O(n)
+```
+
 ---
 
 ## 7. Good Taste (Torvalds)
@@ -157,6 +231,22 @@ One algorithm, zero special cases.
 
 **The meta-lesson:** When you find yourself writing special-case handling, step back and ask
 whether a different data structure or abstraction would eliminate the special case entirely.
+
+```python
+# Special cases everywhere
+def format_name(first: str, middle: str | None, last: str) -> str:
+    if middle is None:
+        return f"{first} {last}"
+    elif middle == "":
+        return f"{first} {last}"
+    else:
+        return f"{first} {middle} {last}"
+
+# Eliminate special cases — filter empty parts
+def format_name(first: str, middle: str | None, last: str) -> str:
+    parts = [first, middle, last]
+    return " ".join(p for p in parts if p)  # one path, zero special cases
+```
 
 ---
 
@@ -305,3 +395,21 @@ That's what the system architecture will converge toward.
   layers between them
 
 Don't fight Conway's Law. Use it.
+
+```python
+# If your org has separate "payments" and "orders" teams,
+# your codebase will naturally develop separate modules:
+#
+# payments/          ← owned by payments team
+#   service.py
+#   models.py
+# orders/            ← owned by orders team
+#   service.py
+#   models.py
+#
+# Don't fight this. Formalize the boundary with explicit interfaces:
+# payments/api.py — the contract other teams import
+# orders/api.py   — the contract other teams import
+#
+# Attempting a shared "core" module owned by nobody will create friction.
+```

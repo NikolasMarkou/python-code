@@ -1,7 +1,7 @@
 # Python Code
 
-[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Skill](https://img.shields.io/badge/Skill-v1.0.0-green.svg)](CHANGELOG.md)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
+[![Skill](https://img.shields.io/badge/Skill-v1.1.0-green.svg)](CHANGELOG.md)
 [![Sponsored by Electi](https://img.shields.io/badge/Sponsored%20by-Electi-red.svg)](https://www.electiconsulting.com)
 
 **Stop writing Python that "works" but doesn't scale. This skill teaches you to think before you code.**
@@ -137,4 +137,4 @@ This project is sponsored by **[Electi Consulting](https://www.electiconsulting.
 
 ## License
 
-[GNU General Public License v3.0](LICENSE)
+[GNU Affero General Public License v3.0](LICENSE)
